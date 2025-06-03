@@ -1,0 +1,761 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passport Photo Maker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <style>
+        /* ... (existing styles - no changes here for brevity, but I will add styles for cropper if needed) ... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            border: 3px dashed #e5e7eb;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            border-color: #4f46e5;
+            background: #f8fafc;
+        }
+
+        .upload-section.dragover {
+            border-color: #4f46e5;
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #9ca3af;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-decoration: none;
+            margin-top: 10px; /* Added for spacing */
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .option-group {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .option-group h3 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .select-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        select, input[type="number"], input[type="text"] { /* Adjusted selector */
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+
+        select:focus, input[type="number"]:focus, input[type="text"]:focus { /* Adjusted selector */
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .custom-size {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .custom-size.active {
+            display: grid;
+        }
+
+        .preview-section {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .image-preview-container { /* Added for Cropper.js */
+            width: 100%;
+            max-width: 400px; /* Limit cropper display width */
+            height: 300px; /* Fixed height for cropper container */
+            margin: 20px auto;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: none; /* Initially hidden */
+            background: #eee; /* Background for empty state */
+        }
+
+        .image-preview { /* This is the img tag Cropper will use */
+            display: block;
+            max-width: 100%;
+            max-height: 300px; /* Ensure image fits in container */
+        }
+        
+        /* Cropper.js specific style to ensure it's visible */
+        .cropper-container {
+            margin: 0 auto; /* Center cropper if it's smaller than container */
+        }
+
+
+        .pdf-preview {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .photo-grid-preview {
+            display: grid;
+            gap: 5px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .photo-item {
+            border: 1px solid #ddd;
+            background: #fff;
+        }
+
+        .info-text {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .passport-sizes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Adjusted for smaller buttons */
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .size-option {
+            padding: 8px 12px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .size-option:hover, .size-option.selected {
+            border-color: #4f46e5;
+            background: #eff6ff;
+        }
+
+        @media (max-width: 768px) {
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            .passport-sizes {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Passport Photo Maker</h1>
+            <p>Upload your photo, crop, and create professional passport-sized prints</p>
+        </div>
+
+        <div class="main-content">
+            <div class="upload-section" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <div class="upload-text">Click to upload or drag & drop your photo</div>
+                <div class="info-text">Supports JPG, PNG, WebP formats</div>
+                <input type="file" class="file-input" id="fileInput" accept="image/*">
+                <button class="btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+            </div>
+
+            <div class="options-grid">
+                <div class="option-group">
+                    <h3>📏 Passport Photo Size</h3>
+                    <div class="passport-sizes" id="passportSizes">
+                        <div class="size-option selected" data-size="35x45" data-region="Europe, Asia, Africa">
+                            <strong>35×45mm</strong><br><small>Europe, Asia, Africa</small>
+                        </div>
+                        <div class="size-option" data-size="51x51" data-region="USA, India, Canada">
+                            <strong>51×51mm</strong><br><small>USA, India, Canada</small>
+                        </div>
+                        <div class="size-option" data-size="50x70" data-region="Canada, Brazil">
+                            <strong>50×70mm</strong><br><small>Canada, Brazil</small>
+                        </div>
+                        <div class="size-option" data-size="40x50" data-region="China, Hong Kong">
+                            <strong>40×50mm</strong><br><small>China, Hong Kong</small>
+                        </div>
+                         <div class="size-option" data-size="33x48" data-region="China">
+                            <strong>33×48mm</strong><br><small>China</small>
+                        </div>
+                        <div class="size-option" data-size="35x50" data-region="Malaysia, Israel">
+                            <strong>35×50mm</strong><br><small>Malaysia, Israel</small>
+                        </div>
+                         <div class="size-option" data-size="30x40" data-region="Italy, Spain">
+                            <strong>30×40mm</strong><br><small>Italy, Spain</small>
+                        </div>
+                        <div class="size-option" data-size="custom">
+                            <strong>Custom Size</strong><br><small>Set your own dimensions</small>
+                        </div>
+                    </div>
+                    <div class="custom-size" id="customSize">
+                        <input type="number" id="customWidth" placeholder="Width (mm)" min="10" max="200" value="35">
+                        <input type="number" id="customHeight" placeholder="Height (mm)" min="10" max="200" value="45">
+                    </div>
+                </div>
+
+                <div class="option-group">
+                    <h3>📄 Paper Size</h3>
+                    <select id="paperSize">
+                        <option value="a4" selected>A4 (210×297mm)</option>
+                        <option value="a3">A3 (297×420mm)</option>
+                        <option value="a5">A5 (148×210mm)</option>
+                        <option value="letter">Letter (216×279mm)</option>
+                        <option value="legal">Legal (216×356mm)</option>
+                        <option value="custom">Custom Size</option>
+                    </select>
+                    <div class="custom-size" id="customPaperSize">
+                        <input type="number" id="paperWidth" placeholder="Width (mm)" min="50" max="1000" value="210">
+                        <input type="number" id="paperHeight" placeholder="Height (mm)" min="50" max="1000" value="297">
+                    </div>
+                </div>
+                
+                <div class="option-group">
+                    <h3>🖼️ Image DPI (Dots Per Inch)</h3>
+                    <select id="dpiSelection">
+                        <option value="150">150 DPI (Draft)</option>
+                        <option value="300" selected>300 DPI (Standard)</option>
+                        <option value="600">600 DPI (High Quality)</option>
+                        <option value="custom">Custom DPI</option>
+                    </select>
+                    <div class="custom-size" id="customDpiSize">
+                         <input type="number" id="customDPI" placeholder="Custom DPI" min="50" max="1200" value="300">
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-section">
+                <div class="image-preview-container" id="imagePreviewContainer">
+                    <img id="imagePreview" class="image-preview" alt="Upload an image to see preview and crop.">
+                </div>
+                
+                <div class="pdf-preview" id="pdfPreview">
+                    <h3>PDF Layout Preview</h3>
+                    <div id="photoGridPreview" class="photo-grid-preview"></div>
+                    <div id="layoutInfo" class="info-text"></div>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Generating your passport photos...</p>
+                </div>
+
+                <button class="btn btn-secondary" id="generateBtn" onclick="generatePDF()" style="display:none;">
+                    📋 Generate PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawUploadedImage = null; // Store the original uploaded image data
+        let cropper = null;
+        let selectedPassportSize = { width: 35, height: 45 };
+        let selectedPaperSize = { width: 210, height: 297 };
+        let selectedDPI = 300;
+
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+
+        // --- Cropper Initialization and Handling ---
+        function initializeCropper(imageDataUrl) {
+            if (cropper) {
+                cropper.destroy();
+            }
+            imagePreview.src = imageDataUrl;
+            imagePreviewContainer.style.display = 'block';
+
+            cropper = new Cropper(imagePreview, {
+                aspectRatio: selectedPassportSize.width / selectedPassportSize.height,
+                viewMode: 1, // restrict crop box to not exceed canvas
+                dragMode: 'move',
+                background: false, // No grid background for cropper
+                autoCropArea: 0.8, // Initial crop area size
+                responsive: true,
+                crop: () => {
+                    // Optional: Could update something live as user crops
+                    // For now, we get cropped data on demand
+                }
+            });
+        }
+
+        function updateCropperAspectRatio() {
+            if (cropper) {
+                cropper.setAspectRatio(selectedPassportSize.width / selectedPassportSize.height);
+            }
+        }
+
+        // --- Passport Size Selection ---
+        document.querySelectorAll('.size-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.size-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                const size = this.dataset.size;
+                const customSizeDiv = document.getElementById('customSize');
+                if (size === 'custom') {
+                    customSizeDiv.classList.add('active');
+                    updateCustomPassportSize(); // Use current values in input
+                } else {
+                    customSizeDiv.classList.remove('active');
+                    const [width, height] = size.split('x').map(Number);
+                    selectedPassportSize = { width, height };
+                }
+                updateCropperAspectRatio();
+                updatePreview();
+            });
+        });
+
+        document.getElementById('customWidth').addEventListener('input', updateCustomPassportSize);
+        document.getElementById('customHeight').addEventListener('input', updateCustomPassportSize);
+
+        function updateCustomPassportSize() {
+            const width = parseInt(document.getElementById('customWidth').value) || selectedPassportSize.width;
+            const height = parseInt(document.getElementById('customHeight').value) || selectedPassportSize.height;
+            if (width > 0 && height > 0) {
+                 selectedPassportSize = { width, height };
+                 // Ensure the custom size option is marked as selected if active
+                 if (document.getElementById('customSize').classList.contains('active')) {
+                    document.querySelectorAll('.size-option').forEach(opt => opt.classList.remove('selected'));
+                    document.querySelector('.size-option[data-size="custom"]').classList.add('selected');
+                 }
+            }
+            updateCropperAspectRatio();
+            updatePreview();
+        }
+        
+        // --- Paper Size Selection ---
+        document.getElementById('paperSize').addEventListener('change', function() {
+            const size = this.value;
+            const customDiv = document.getElementById('customPaperSize');
+            
+            if (size === 'custom') {
+                customDiv.classList.add('active');
+                updateCustomPaperSize(); // Use current values
+            } else {
+                customDiv.classList.remove('active');
+                const sizes = {
+                    'a4': { width: 210, height: 297 }, 'a3': { width: 297, height: 420 },
+                    'a5': { width: 148, height: 210 }, 'letter': { width: 216, height: 279 },
+                    'legal': { width: 216, height: 356 }
+                };
+                selectedPaperSize = sizes[size];
+            }
+            updatePreview();
+        });
+
+        document.getElementById('paperWidth').addEventListener('input', updateCustomPaperSize);
+        document.getElementById('paperHeight').addEventListener('input', updateCustomPaperSize);
+
+        function updateCustomPaperSize() {
+            const width = parseInt(document.getElementById('paperWidth').value) || selectedPaperSize.width;
+            const height = parseInt(document.getElementById('paperHeight').value) || selectedPaperSize.height;
+             if (width > 0 && height > 0) {
+                selectedPaperSize = { width, height };
+            }
+            updatePreview();
+        }
+
+        // --- DPI Selection ---
+        document.getElementById('dpiSelection').addEventListener('change', function() {
+            const dpiValue = this.value;
+            const customDpiDiv = document.getElementById('customDpiSize');
+            if (dpiValue === 'custom') {
+                customDpiDiv.classList.add('active');
+                updateCustomDPI(); // use current value
+            } else {
+                customDpiDiv.classList.remove('active');
+                selectedDPI = parseInt(dpiValue);
+            }
+            // No need to call updatePreview() for DPI change unless preview depends on DPI
+        });
+        document.getElementById('customDPI').addEventListener('input', updateCustomDPI);
+
+        function updateCustomDPI() {
+            const dpi = parseInt(document.getElementById('customDPI').value) || 300;
+            if (dpi > 0) {
+                selectedDPI = dpi;
+            }
+        }
+
+        // --- File Upload Handling ---
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        ['dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, (e) => e.preventDefault(), false);
+        });
+        uploadArea.addEventListener('dragover', () => uploadArea.classList.add('dragover'));
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFile(files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file (JPG, PNG, WebP)');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                rawUploadedImage = e.target.result;
+                initializeCropper(rawUploadedImage);
+                document.getElementById('generateBtn').style.display = 'inline-block';
+                updatePreview(); // Update layout preview once image is loaded
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- Layout Calculation (Maximized and Centered) ---
+        function calculateLayout() {
+            if (!rawUploadedImage) return null; // Check rawUploadedImage as cropper depends on it
+
+            const photoW = selectedPassportSize.width;
+            const photoH = selectedPassportSize.height;
+            const paperW = selectedPaperSize.width;
+            const paperH = selectedPaperSize.height;
+            const spacing = 2; // 2mm spacing between photos
+
+            // Calculate how many photos fit, ignoring margins initially to find max potential
+            const photosPerRow = Math.floor((paperW + spacing) / (photoW + spacing));
+            const photosPerColumn = Math.floor((paperH + spacing) / (photoH + spacing));
+
+            if (photosPerRow === 0 || photosPerColumn === 0) {
+                return { photosPerRow: 0, photosPerColumn: 0, totalPhotos: 0, startX_mm: 0, startY_mm: 0, spacing_mm: spacing, photoW, photoH };
+            }
+
+            // Calculate the actual width/height taken by this many photos + spacing
+            const blockWidthMm = photosPerRow * photoW + (photosPerRow > 1 ? (photosPerRow - 1) * spacing : 0);
+            const blockHeightMm = photosPerColumn * photoH + (photosPerColumn > 1 ? (photosPerColumn - 1) * spacing : 0);
+            
+            // Calculate starting X and Y to center this block on the paper
+            // Ensure margins are not negative (e.g., if block is larger than paper, though photosPerRow/Col should prevent this)
+            const startX_mm = Math.max(0, (paperW - blockWidthMm) / 2);
+            const startY_mm = Math.max(0, (paperH - blockHeightMm) / 2);
+
+            return {
+                photosPerRow,
+                photosPerColumn,
+                totalPhotos: photosPerRow * photosPerColumn,
+                startX_mm, 
+                startY_mm, 
+                spacing_mm: spacing,
+                photoW, 
+                photoH
+            };
+        }
+
+        // --- Update PDF Preview Grid ---
+        async function updatePreview() {
+            if (!cropper && !rawUploadedImage) { // If no image is loaded yet
+                 document.getElementById('pdfPreview').style.display = 'none';
+                return;
+            }
+            
+            const layout = calculateLayout();
+            if (!layout || layout.totalPhotos === 0) {
+                document.getElementById('pdfPreview').style.display = 'block'; // Show preview area
+                document.getElementById('photoGridPreview').innerHTML = ''; // Clear grid
+                document.getElementById('layoutInfo').innerHTML = 'Cannot fit any photos with current settings.';
+                return;
+            }
+
+            const previewDiv = document.getElementById('pdfPreview');
+            const gridDiv = document.getElementById('photoGridPreview');
+            const infoDiv = document.getElementById('layoutInfo');
+            
+            previewDiv.style.display = 'block';
+            gridDiv.innerHTML = '';
+            gridDiv.style.gridTemplateColumns = `repeat(${layout.photosPerRow}, auto)`;
+            
+            // Determine scale for preview items to fit a max width (e.g., 300px)
+            const maxPreviewWidth = 300;
+            const gridActualWidthMm = layout.photosPerRow * layout.photoW + (layout.photosPerRow -1) * layout.spacing_mm;
+            const previewItemScale = gridActualWidthMm > 0 ? maxPreviewWidth / gridActualWidthMm : 1;
+
+            let imageToPreviewSrc = rawUploadedImage; // Default to raw
+            if (cropper && cropper.cropped) { // If cropper is active and has made a crop
+                 try {
+                    imageToPreviewSrc = cropper.getCroppedCanvas({
+                        // Optionally specify output size for preview if needed, but usually not for bg image
+                    }).toDataURL();
+                 } catch (e) {
+                    console.warn("Could not get cropped canvas for preview, using raw image.", e);
+                    imageToPreviewSrc = rawUploadedImage; // Fallback
+                 }
+            }
+
+
+            for (let i = 0; i < layout.totalPhotos; i++) {
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'photo-item';
+                photoDiv.style.width = `${layout.photoW * previewItemScale}px`;
+                photoDiv.style.height = `${layout.photoH * previewItemScale}px`;
+                if (imageToPreviewSrc) {
+                    photoDiv.style.backgroundImage = `url(${imageToPreviewSrc})`;
+                    photoDiv.style.backgroundSize = 'cover';
+                    photoDiv.style.backgroundPosition = 'center';
+                }
+                gridDiv.appendChild(photoDiv);
+            }
+
+            infoDiv.innerHTML = `
+                <strong>${layout.totalPhotos} photos</strong> (${layout.photosPerRow} × ${layout.photosPerColumn}) 
+                on ${selectedPaperSize.width}×${selectedPaperSize.height}mm paper.<br>
+                Each photo: ${selectedPassportSize.width}×${selectedPassportSize.height}mm.
+                Effective margins: X≈${layout.startX_mm.toFixed(1)}mm, Y≈${layout.startY_mm.toFixed(1)}mm.
+            `;
+        }
+        
+        // --- PDF Generation ---
+        function generatePDF() {
+            if (!rawUploadedImage) {
+                alert('Please upload an image first.');
+                return;
+            }
+            if (!cropper) {
+                alert('Cropper not initialized. Please re-upload image.');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            
+            // Get the cropped image data from Cropper.js
+            let croppedImageDataURL;
+            try {
+                 const croppedCanvas = cropper.getCroppedCanvas({
+                    // We don't set width/height here, as we want the full resolution crop initially
+                    // Resizing will happen next based on DPI
+                 });
+                 if (!croppedCanvas){
+                    alert('Could not get cropped image. Please try cropping again.');
+                    document.getElementById('loading').style.display = 'none';
+                    return;
+                 }
+                 croppedImageDataURL = croppedCanvas.toDataURL('image/jpeg', 0.9); // Use JPEG for PDF
+            } catch(e) {
+                alert('Error getting cropped image: ' + e.message);
+                console.error("Error during getCroppedCanvas:", e);
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+
+            const layout = calculateLayout();
+            if (!layout || layout.totalPhotos === 0) {
+                alert('Cannot fit any photos on the selected paper size with the current settings.');
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            const img = new Image();
+            img.onload = () => {
+                // Resize the cropped image to the target print dimensions based on DPI
+                const inchToMm = 25.4;
+                const targetPhotoWidthPx = Math.round(selectedPassportSize.width / inchToMm * selectedDPI);
+                const targetPhotoHeightPx = Math.round(selectedPassportSize.height / inchToMm * selectedDPI);
+
+                const resizeCanvas = document.createElement('canvas');
+                resizeCanvas.width = targetPhotoWidthPx;
+                resizeCanvas.height = targetPhotoHeightPx;
+                const ctx = resizeCanvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, targetPhotoWidthPx, targetPhotoHeightPx);
+                const resizedImageDataURL = resizeCanvas.toDataURL('image/jpeg', 0.9); // Quality 0.9
+
+                // Proceed with PDF generation
+                const { jsPDF } = window.jspdf;
+                const mmToPoints = 2.834645669;
+
+                const paperWidthPt = selectedPaperSize.width * mmToPoints;
+                const paperHeightPt = selectedPaperSize.height * mmToPoints;
+
+                const pdf = new jsPDF({
+                    orientation: paperWidthPt > paperHeightPt ? 'landscape' : 'portrait',
+                    unit: 'pt',
+                    format: [paperWidthPt, paperHeightPt]
+                });
+
+                const startX_pt = layout.startX_mm * mmToPoints;
+                const startY_pt = layout.startY_mm * mmToPoints;
+                const photoWidthPt = selectedPassportSize.width * mmToPoints;
+                const photoHeightPt = selectedPassportSize.height * mmToPoints;
+                const spacingPt = layout.spacing_mm * mmToPoints;
+
+                for (let r = 0; r < layout.photosPerColumn; r++) {
+                    for (let c = 0; c < layout.photosPerRow; c++) {
+                        const photoIndex = r * layout.photosPerRow + c;
+                        if (photoIndex >= layout.totalPhotos) break;
+
+                        const currentX = startX_pt + c * (photoWidthPt + spacingPt);
+                        const currentY = startY_pt + r * (photoHeightPt + spacingPt);
+                        
+                        pdf.addImage(resizedImageDataURL, 'JPEG', currentX, currentY, photoWidthPt, photoHeightPt);
+                    }
+                }
+
+                const fileName = `passport-photos-${selectedPassportSize.width}x${selectedPassportSize.height}mm-DPI${selectedDPI}.pdf`;
+                pdf.save(fileName);
+                document.getElementById('loading').style.display = 'none';
+            };
+            img.onerror = () => {
+                alert('Error loading cropped image for processing. The image might be corrupted or in an unsupported format after cropping.');
+                document.getElementById('loading').style.display = 'none';
+            };
+            img.src = croppedImageDataURL; // Load the (potentially large) cropped image for resizing
+        }
+
+        // Initial call to set default states if any
+        // Ensure custom input fields have default values reflected in variables
+        updateCustomPassportSize();
+        updateCustomPaperSize();
+        updateCustomDPI();
+        // Default passport size selection (35x45) is already marked 'selected' in HTML
+        // Default paper size (A4) is 'selected' in HTML
+        // Default DPI (300) is 'selected' in HTML
+    </script>
+</body>
+</html>
